@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#define USE_MRAA
 
 #include <stdint.h>
 #include <stdio.h>
@@ -22,6 +23,11 @@
 #include <execinfo.h>
 #include <stddef.h>
 #include <sys/select.h>
+#include <unistd.h>
+
+#ifdef USE_MRAA
+#include <mraa.h>
+#endif
 
 #include "kaa/kaa.h"
 #include "kaa/kaa_error.h"
@@ -67,30 +73,77 @@ static kaa_transport_channel_interface_t operations_channel;
 
 static bool is_shutdown = false;
 
+#ifdef USE_MRAA
+//Pin to connect the servo to edison
+//static int left_servo = 6;
+//static int right_servo = 9;
+static int period_servo = 1000;
 
+
+void motion_kaabot(float pulseWidthLeft, float pulseWidthRight)
+{
+    mraa_init();
+    //! [Interesting]
+    mraa_pwm_context pwm1;
+    mraa_pwm_context pwm2;
+    pwm1 = mraa_pwm_init(6);
+    pwm2 = mraa_pwm_init(9);
+    if (pwm1 == NULL||pwm2==NULL)
+        return 1;
+
+    mraa_pwm_period_us(pwm1, period_servo);
+    mraa_pwm_enable(pwm1, 1);
+    mraa_pwm_period_us(pwm2, period_servo);
+    mraa_pwm_enable(pwm2, 1);
+
+    //float value1 = pulseWidthLeft;
+    //float value2 = pulseWidthRight;
+    //value = value + .1f;
+    mraa_pwm_write(pwm2, pulseWidthLeft);
+    mraa_pwm_write(pwm1, pulseWidthRight);
+    // if (value >= 1.0f) {
+    //     value = 0.0f;
+    // }
+    float output1 = mraa_pwm_read(pwm1);
+    float output2 = mraa_pwm_read(pwm2);
+    //! [Interesting]
+    printf("%.6f",output1);
+}
+#endif //USE_MRAA
 
 void kaa_on_movement_class_direction(void *context, kaa_movement_class_movement_direction_t *event, kaa_endpoint_id_p source)
 {
-    KAA_TRACE_IN(kaa_context_->logger);
+    float pulseWidthLeft = 0.0
+        , pulseWidthRight = 0.0;
 
     switch (event->direction) {
     case ENUM_DIRECTIONT_BOT_BACKWARD:
         KAA_LOG_WARN(kaa_context_->logger, 0, "Backward!");
+        pulseWidthLeft = 0.2f;
+        pulseWidthRight = 0.9f;
         break;
     case ENUM_DIRECTIONT_BOT_FORWARD:
         KAA_LOG_WARN(kaa_context_->logger, 0, "Forward!");
+        pulseWidthLeft = 0.9f;
+        pulseWidthRight = 0.2f;
         break;
     case ENUM_DIRECTIONT_BOT_LEFT:
         KAA_LOG_WARN(kaa_context_->logger, 0, "Left!");
+        pulseWidthLeft = 0.0f;
+        pulseWidthRight = 0.1f;
         break;
     case ENUM_DIRECTIONT_BOT_RIGHT:
         KAA_LOG_WARN(kaa_context_->logger, 0, "Right!");
+        pulseWidthLeft = 0.1f;
+        pulseWidthRight = 0.0f;
         break;
     case ENUM_DIRECTIONT_BOT_STOP:
         KAA_LOG_WARN(kaa_context_->logger, 0, "Stop!");
         break;
     }
-
+#ifdef USE_MRAA
+    motion_kaabot(pulseWidthLeft, pulseWidthRight);
+#endif
     event->destroy(event);
 }
 
@@ -104,29 +157,28 @@ kaa_error_t kaa_on_event_listeners(void *context, const kaa_endpoint_id listener
 
 kaa_error_t kaa_on_event_listeners_failed(void *context)
 {
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Kaa Demo event listeners not found\n");
+    printf("Kaa Demo event listeners not found\n");
     return KAA_ERR_NONE;
 }
 
 
 kaa_error_t kaa_on_attached(void *context, const char *user_external_id, const char *endpoint_access_token)
 {
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Kaa Demo attached to user %s, access token %s\n", user_external_id, endpoint_access_token);
+    printf("Kaa Demo attached to user %s, access token %s\n", user_external_id, endpoint_access_token);
     return KAA_ERR_NONE;
 }
 
 
 kaa_error_t kaa_on_detached(void *context, const char *endpoint_access_token)
 {
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Kaa Demo detached from user access token %s\n", endpoint_access_token);
+    printf("Kaa Demo detached from user access token %s\n", endpoint_access_token);
     return KAA_ERR_NONE;
 }
 
 
 kaa_error_t kaa_on_attach_success(void *context)
 {
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Kaa Demo attach success\n");
-
+    printf("Kaa Demo attach success\n");
     const char *fqns[] = { THERMO_REQUEST_FQN, CHANGE_DEGREE_REQUEST_FQN };
     kaa_event_listeners_callback_t listeners_callback = { NULL, &kaa_on_event_listeners, &kaa_on_event_listeners_failed };
     kaa_error_t error_code = kaa_event_manager_find_event_listeners(kaa_context_->event_manager, fqns, 2, &listeners_callback);
@@ -140,7 +192,7 @@ kaa_error_t kaa_on_attach_success(void *context)
 
 kaa_error_t kaa_on_attach_failed(void *context, user_verifier_error_code_t error_code, const char *reason)
 {
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Kaa Demo attach failed\n");
+    printf("Kaa Demo attach failed\n");
     is_shutdown = true;
     return KAA_ERR_NONE;
 }
@@ -151,9 +203,10 @@ kaa_error_t kaa_on_attach_failed(void *context, user_verifier_error_code_t error
  */
 kaa_error_t kaa_sdk_init()
 {
+    printf("Initializing Kaa SDK...\n");
     kaa_error_t error_code = kaa_init(&kaa_context_);
     if (error_code) {
-        KAA_LOG_INFO(kaa_context_->logger, 0, "Error during kaa context creation %d\n", error_code);
+        printf("Error during kaa context creation %d\n", error_code);
         return error_code;
     }
 
@@ -205,7 +258,7 @@ kaa_error_t kaa_demo_init()
 {
     kaa_error_t error_code = kaa_sdk_init();
     if (error_code) {
-        KAA_LOG_INFO(kaa_context_->logger, 0, "Failed to init Kaa SDK. Error code : %d\n", error_code);
+        printf("Failed to init Kaa SDK. Error code : %d\n", error_code);
         return error_code;
     }
     return KAA_ERR_NONE;
@@ -221,14 +274,14 @@ int kaa_demo_event_loop()
 {
     kaa_error_t error_code = kaa_start(kaa_context_);
     if (error_code) {
-        KAA_LOG_INFO(kaa_context_->logger, 0, "Failed to start Kaa workflow\n");
+        printf("Failed to start Kaa workflow\n");
         return -1;
     }
 
     uint16_t select_timeout;
     error_code = kaa_tcp_channel_get_max_timeout(&operations_channel, &select_timeout);
     if (error_code) {
-        KAA_LOG_INFO(kaa_context_->logger, 0, "Failed to get Operations channel keepalive timeout\n");
+        printf("Failed to get Operations channel keepalive timeout\n");
         return -1;
     }
 
@@ -312,16 +365,16 @@ int kaa_demo_event_loop()
 
 int main(/*int argc, char *argv[]*/)
 {
+    printf("Event demo started\n");
     kaa_error_t error_code = kaa_demo_init();
     if (error_code) {
+        printf("Failed to initialize Kaa demo. Error code: %d\n", error_code);
         return error_code;
     }
 
     int rval = kaa_demo_event_loop();
     kaa_demo_destroy();
-
-    KAA_LOG_INFO(kaa_context_->logger, 0, "Event demo stopped\n");
-
+    printf("Event demo stopped\n");
     return rval;
 }
 

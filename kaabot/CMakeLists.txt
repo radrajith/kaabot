@@ -35,3 +35,4 @@ set (SAMPLE_SOURCE_FILES
 
 add_executable(${APP_NAME} ${SAMPLE_SOURCE_FILES})
 target_link_libraries(${APP_NAME} kaac crypto)
+#target_link_libraries(${APP_NAME} kaac crypto mraa)
