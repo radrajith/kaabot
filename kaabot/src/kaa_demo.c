@@ -359,16 +359,16 @@ int kaa_demo_event_loop()
 
 int main(/*int argc, char *argv[]*/)
 {
-    printf("Event demo started\n");
+    printf("Kaa Bot started\n");
     kaa_error_t error_code = kaa_demo_init();
     if (error_code) {
-        printf("Failed to initialize Kaa demo. Error code: %d\n", error_code);
+        printf("Failed to initialize. Error code: %d\n", error_code);
         return error_code;
     }
 
     int rval = kaa_demo_event_loop();
     kaa_demo_destroy();
-    printf("Event demo stopped\n");
+    printf("Kaa Bot stopped\n");
     return rval;
 }
 

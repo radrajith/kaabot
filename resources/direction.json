@@ -1,0 +1,16 @@
+[
+{
+  "type" : "record",
+  "classType":"event",
+  "name" : "movementDirection",
+  "namespace" : "com.krishna.kaabot",
+  "fields" : [ {
+    "name" : "direction",
+    "type" : {
+      "type" : "enum",
+      "name" : "directionT",
+      "symbols" : [ "BOT_BACKWARD", "BOT_FORWARD", "BOT_LEFT", "BOT_RIGHT", "BOT_STOP" ]
+    }
+  } ]
+}
+]
