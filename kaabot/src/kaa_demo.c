@@ -74,40 +74,34 @@ static kaa_transport_channel_interface_t operations_channel;
 static bool is_shutdown = false;
 
 #ifdef USE_MRAA
-//Pin to connect the servo to edison
-//static int left_servo = 6;
-//static int right_servo = 9;
-static int period_servo = 1000;
 
 
 void motion_kaabot(float pulseWidthLeft, float pulseWidthRight)
 {
+    // Pin to connect servos to Edison
+    const int left_servo = 6;
+    const int right_servo = 9;
+    const int period_servo = 1000;
+
     mraa_init();
-    //! [Interesting]
-    mraa_pwm_context pwm1;
-    mraa_pwm_context pwm2;
-    pwm1 = mraa_pwm_init(6);
-    pwm2 = mraa_pwm_init(9);
-    if (pwm1 == NULL||pwm2==NULL)
-        return 1;
+
+    mraa_pwm_context pwm1 = mraa_pwm_init(left_servo);
+    mraa_pwm_context pwm2 = mraa_pwm_init(right_servo);
+    KAA_RETURN_IF_NIL2(pwm1, pwm2, );
 
     mraa_pwm_period_us(pwm1, period_servo);
     mraa_pwm_enable(pwm1, 1);
     mraa_pwm_period_us(pwm2, period_servo);
     mraa_pwm_enable(pwm2, 1);
 
-    //float value1 = pulseWidthLeft;
-    //float value2 = pulseWidthRight;
-    //value = value + .1f;
     mraa_pwm_write(pwm2, pulseWidthLeft);
     mraa_pwm_write(pwm1, pulseWidthRight);
-    // if (value >= 1.0f) {
-    //     value = 0.0f;
-    // }
-    float output1 = mraa_pwm_read(pwm1);
-    float output2 = mraa_pwm_read(pwm2);
-    //! [Interesting]
-    printf("%.6f",output1);
+
+//  I have no idea why we would need this
+//    float output1 = mraa_pwm_read(pwm1);
+//    float output2 = mraa_pwm_read(pwm2);
+//
+//    printf("%.6f",output1);
 }
 #endif //USE_MRAA
 
